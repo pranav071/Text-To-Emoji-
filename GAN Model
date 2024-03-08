@@ -1,0 +1,66 @@
+import pandas as pd
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.layers import Dense, Reshape, Flatten
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.optimizers import Adam
+
+# Load the CSV file
+df = pd.read_csv('full_emoji.csv')
+
+# Preprocess the data
+# For simplicity, we'll only use the text descriptions as input
+texts = df['name'].values
+
+# Define the GAN model
+def build_generator():
+    model = Sequential()
+    model.add(Dense(256, input_dim=100, activation='relu'))
+    model.add(Dense(512, activation='relu'))
+    model.add(Dense(1024, activation='relu'))
+    model.add(Dense(64, activation='tanh'))  # Output layer with tanh activation
+    model.add(Reshape((8, 8, 1)))  # Reshape to 8x8x1 image
+    return model
+
+def build_discriminator():
+    model = Sequential()
+    model.add(Flatten(input_shape=(8, 8, 1)))
+    model.add(Dense(1024, activation='relu'))
+    model.add(Dense(512, activation='relu'))
+    model.add(Dense(256, activation='relu'))
+    model.add(Dense(1, activation='sigmoid'))  # Output layer with sigmoid activation
+    return model
+
+def build_gan(generator, discriminator):
+    discriminator.trainable = False
+    model = Sequential()
+    model.add(generator)
+    model.add(discriminator)
+    model.compile(loss='binary_crossentropy', optimizer=Adam(learning_rate=0.0002, beta_1=0.5))
+    return model
+generator = build_generator()
+discriminator = build_discriminator()
+gan = build_gan(generator, discriminator)
+# Train the GAN
+def train_gan(generator, discriminator, gan, texts, epochs=100, batch_size=32):
+    for epoch in range(epochs):
+        for _ in range(len(texts) // batch_size):
+            # Train the discriminator
+            noise = np.random.normal(0, 1, (batch_size, 100))
+            fake_images = generator.predict(noise)
+            real_images = ...  # Load real emoji images from the dataset
+            images = np.concatenate([real_images, fake_images])
+            labels = np.concatenate([np.ones((batch_size, 1)), np.zeros((batch_size, 1))])
+            discriminator_loss = discriminator.train_on_batch(images, labels)
+
+            # Train the generator
+            noise = np.random.normal(0, 1, (batch_size, 100))
+            gan_labels = np.ones((batch_size, 1))
+            generator_loss = gan.train_on_batch(noise, gan_labels)
+
+        # Print the progress
+        print(f'Epoch: {epoch + 1}, Discriminator Loss: {discriminator_loss}, Generator Loss: {generator_loss}')
+# Example usage
+train_gan(generator, discriminator, gan, texts)
+input_text = input("Enter text: ")
+generated_image = generate_emoji_image(generator, input_text)
