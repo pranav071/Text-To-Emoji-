@@ -1,0 +1,45 @@
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Embedding, Dropout
+import pandas as pd
+
+# Step 1: Data Preprocessing
+data = pd.read_csv('full_emoji.csv')
+X = data['name']
+y = data['emoji']
+
+# Step 2: Text Encoding
+label_encoder = LabelEncoder()
+y_encoded = label_encoder.fit_transform(y)
+
+# Tokenize the text data
+tokenizer = Tokenizer()
+tokenizer.fit_on_texts(X)
+
+# Convert text data to sequences of integers
+X_seq = tokenizer.texts_to_sequences(X)
+
+# Pad sequences to ensure uniform length
+max_seq_length = max(len(seq) for seq in X_seq)
+X_padded = pad_sequences(X_seq, maxlen=max_seq_length, padding='post')
+
+# Step 3: Model Architecture
+model = Sequential()
+model.add(Embedding(input_dim=len(tokenizer.word_index) + 1, output_dim=100, input_length=max_seq_length))
+model.add(LSTM(100, return_sequences=True))
+model.add(LSTM(100))
+model.add(Dense(50, activation='relu'))
+model.add(Dropout(0.5))  # Adding dropout for regularization
+model.add(Dense(len(label_encoder.classes_), activation='softmax'))
+model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+# Step 4: Training
+X_train, X_test, y_train, y_test = train_test_split(X_padded, y_encoded, test_size=0.2, random_state=42)
+model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.2)
+
+# Step 5: Evaluation
+loss, accuracy = model.evaluate(X_test, y_test)
+print(f'Test Loss: {loss}, Test Accuracy: {accuracy}')
